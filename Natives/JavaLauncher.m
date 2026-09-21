@@ -173,7 +173,6 @@ void init_loadCustomJvmFlags(int* argc, const char** argv) {
             }
         }
         if (ignore) continue;
-
         ++*argc;
         argv[*argc] = [@"-" stringByAppendingString:jvmarg].UTF8String;
 
@@ -408,10 +407,10 @@ int launchJVM(NSString *username, id launchTarget, int width, int height, int mi
         // org.lwjgl.opengl.GL during startup REGARDLESS of which renderer the
         // game ultimately uses. With opengl.libname unset, LWJGL falls back to
         // MacOSXLibraryBundle.getWithIdentifier("com.apple.opengl") which fails
-        // on iOS (no system OpenGL framework) →
+        // on iOS (no system OpenGL framework) ->
         //   java.lang.UnsatisfiedLinkError: Failed to retrieve bundle with
         //   identifier: com.apple.opengl
-        // Point opengl.libname at libmobileglues.dylib for Vulkan setups —
+        // Point opengl.libname at libmobileglues.dylib for Vulkan setups -
         // MobileGlues is purpose-built for GL-on-Metal/Vulkan on mobile and
         // already uses our shipped libspirv-cross.dylib for shader translation.
         // GL.create() finds GL function pointers; if Minecraft ever does call
@@ -556,23 +555,24 @@ int launchJVM(NSString *username, id launchTarget, int width, int height, int mi
     NSLog(@"[Init] Found JLI lib");
 
     NSString *classpath = [NSString stringWithFormat:@"%@/*", librariesPath];
-    if (launchJar) {
-        classpath = [classpath stringByAppendingFormat:@":%@", launchTarget];
-    }
     margv[++margc] = "-cp";
     margv[++margc] = classpath.UTF8String;
     margv[++margc] = "net.kdt.pojavlaunch.PojavLauncher";
 
+    // FIX: pantalla negra en JAR execution.
+    // Antes: -jar se mandaba como argumento a PojavLauncher en vez de como flag JVM,
+    // y el path del JAR quedaba suelto sin relacion con -jar. Ahora los dos van juntos
+    // y en orden correcto para que PojavLauncher los procese bien con Caciocavallo activo.
     if (launchJar) {
         margv[++margc] = "-jar";
+        margv[++margc] = [launchTarget UTF8String];
     } else {
         margv[++margc] = username.UTF8String;
-    }
-
-    if ([launchTarget isKindOfClass:NSDictionary.class]) {
-        margv[++margc] = [launchTarget[@"id"] UTF8String];
-    } else {
-        margv[++margc] = [launchTarget UTF8String];
+        if ([launchTarget isKindOfClass:NSDictionary.class]) {
+            margv[++margc] = [launchTarget[@"id"] UTF8String];
+        } else {
+            margv[++margc] = [launchTarget UTF8String];
+        }
     }
     //margv[++margc] = "ghidra.GhidraRun";
 
