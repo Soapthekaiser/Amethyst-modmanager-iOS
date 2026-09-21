@@ -13,6 +13,9 @@ public class UIKit {
     public static final int ACTION_MOVE = 2;
     public static final int ACTION_MOVE_MOTION = 3;
 
+    private static final String FORGE_INSTALLER_MAIN = "net.minecraftforge.installer.SimpleInstaller";
+    private static final String FORGE_INSTALL_CLIENT = "--installClient";
+
     private static int guiScale;
 
     private static void patch_FlatLAF_setLinux() {
@@ -20,28 +23,43 @@ public class UIKit {
         System.setProperty("os.name", "Linux");
         try {
             Class<?> clazz = ClassLoader.getSystemClassLoader().loadClass("com.formdev.flatlaf.util.SystemInfo");
-            // trigger static init
             clazz.getField("isMacOS").get(null);
         } catch (Throwable e) {
             System.out.println("Skipped patch_FlatLAF_setLinux");
-            //e.printStackTrace();
         }
         System.setProperty("os.name", osName);
     }
 
-    public static void callback_JavaGUIViewController_launchJarFile(final String filepath, String[] args) throws Throwable {
-        // Launch the JAR file
-        String mainClassName = null;
+    private static boolean hasOptionArgument(String[] args) {
+        for (String arg : args) {
+            if (arg != null && arg.startsWith("--")) {
+                return true;
+            }
+        }
+        return false;
+    }
 
-        JarFile jarfile = new JarFile(filepath);
-        String mainClass = jarfile.getManifest().getMainAttributes().getValue("Main-Class");
-        jarfile.close();
+    public static void callback_JavaGUIViewController_launchJarFile(final String filepath, String[] args) throws Throwable {
+        String mainClass = null;
+
+        try (JarFile jarfile = new JarFile(filepath)) {
+            Manifest manifest = jarfile.getManifest();
+            if (manifest != null) {
+                mainClass = manifest.getMainAttributes().getValue("Main-Class");
+            }
+        }
         if (mainClass == null) {
             throw new IllegalArgumentException("no main manifest attribute, in \"" + filepath + "\"");
         }
 
-        // LabyMod Installer uses FlatLAF which has some macOS-specific codes, so we make it think it's running on Linux.
         patch_FlatLAF_setLinux();
+
+        if (args == null) {
+            args = new String[0];
+        }
+        if (FORGE_INSTALLER_MAIN.equals(mainClass) && !hasOptionArgument(args)) {
+            args = new String[] { FORGE_INSTALL_CLIENT };
+        }
 
         Class<?> clazz = ClassLoader.getSystemClassLoader().loadClass(mainClass);
         Method method = clazz.getMethod("main", String[].class);
@@ -64,10 +82,7 @@ public class UIKit {
         System.load(System.getenv("BUNDLE_PATH") + "/AngelAuraAmethyst");
     }
 
-
-    // public static native void runOnUIThread(UIKitCallback callback);
-
     public static native void showError(String title, String message, boolean exitIfOk);
 
     private static native void updateMCGuiScale(int scale);
-} 
+}
