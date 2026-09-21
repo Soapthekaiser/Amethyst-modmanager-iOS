@@ -30,6 +30,12 @@ public class UIKit {
         System.setProperty("os.name", osName);
     }
 
+    private static void setDefaultProperty(String key, String value) {
+        if (System.getProperty(key) == null) {
+            System.setProperty(key, value);
+        }
+    }
+
     private static boolean hasOptionArgument(String[] args) {
         for (String arg : args) {
             if (arg != null && arg.startsWith("--")) {
@@ -40,6 +46,9 @@ public class UIKit {
     }
 
     public static void callback_JavaGUIViewController_launchJarFile(final String filepath, String[] args) throws Throwable {
+        setDefaultProperty("swing.volatileImageBufferEnabled", "false");
+        setDefaultProperty("swing.metalTheme", "steel");
+
         String mainClass = null;
 
         try (JarFile jarfile = new JarFile(filepath)) {
